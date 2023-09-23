@@ -5,6 +5,7 @@ import { getStore } from "../helpers";
 import { CurrentGameStore } from "../games";
 import type { DownloadsEntity, GameEntity } from "../types";
 import { SerializedDownloaderStore } from "./SerializedDownloaderStore";
+import { appDataDir, delimiter } from "@tauri-apps/api/path";
 
 // StoreClass
 class DownloaderStoreClass {
@@ -61,7 +62,7 @@ class DownloaderStoreClass {
         const gameStore = await getStore(CurrentGameStore);
 
         // Loading saved store data
-        const serializedData = await SerializedDownloaderStore.get<DownloadsEntity>(gameStore.id);
+        const serializedData = await SerializedDownloaderStore.get<DownloaderStoreInterface['currentManifest']>(gameStore.id);
         if (serializedData != null) {
             this.update((store) => {
                 store.currentManifest = serializedData;
@@ -83,16 +84,12 @@ class DownloaderStoreClass {
 
     async getUpdatesInformation(manifest: DownloadsEntity): Promise<{ needUpdate: boolean, manifest?: DownloadsEntity }> {
         this.setState(DownloadState.CHECKING_UPDATES);
-
+        
         const store = await getStore(this);
 
-        console.log(manifest, store.currentManifest);
-
-        if (manifest.id != store.currentManifest?.id) {
-            console.log("Need update");
+        if (manifest.id != store.currentManifest?.download.id) {
             return { needUpdate: true, manifest };
         } else {
-            console.log("No");
             return { needUpdate: false };
         };
     }
@@ -109,11 +106,26 @@ class DownloaderStoreClass {
         this.update((store) => {
             return {
                 ...store,
-                currentManifest: manifest,
+                currentManifest: {
+                    ...store?.currentManifest,
+                    download: manifest,
+                }
             };
         });
 
-        await SerializedDownloaderStore.set(gameStore.id, manifest);
+        const store = await getStore(this);
+
+        // Checking if we have { currentManifest.path }
+        let path = store.currentManifest!.path;
+        if (path == undefined) {
+            // todo: let user pick this path
+            path = await appDataDir() + delimiter + gameStore.id;
+            this.setDownloadPath(path);
+        };
+
+        if (path == undefined) throw new Error("[Downloader->downloadManifest] Download path is empty");
+
+        await this.saveSerializedData();
 
         // Updating store state
         this.setState(DownloadState.DOWNLOADING);
@@ -121,6 +133,20 @@ class DownloaderStoreClass {
         // Deleting all files from game default folder
 
         // Looping through all files and downloading them
+    }
+
+    private setDownloadPath(path: string) {
+        this.update((store) => {
+            store.currentManifest!.path = path;
+            return store;
+        });
+    }
+
+    private async saveSerializedData() {
+        const store = await getStore(this);
+        const gameStore = await getStore(CurrentGameStore);
+
+        await SerializedDownloaderStore.set(gameStore.id, store.currentManifest);
     }
 
     private setState(state: DownloadState) {

@@ -5,5 +5,8 @@ import type { DownloadsEntity } from "../../types";
 // Store interface
 export interface DownloaderStoreInterface {
     state: DownloadState;
-    currentManifest?: DownloadsEntity;
+    currentManifest?: {
+        path?: string;
+        download: DownloadsEntity
+    };
 }
