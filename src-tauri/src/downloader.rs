@@ -1,6 +1,7 @@
 use reqwest::Client;
 use std::cmp::min;
 use std::fs::File;
+use std::fs::create_dir_all;
 use futures_util::StreamExt;
 use std::io::Write;
 
@@ -21,7 +22,10 @@ pub async fn download_file(url: &str, path: &str) -> Result<(), String> {
         .ok_or(format!("Failed to get content length from '{}'", &url))?;
 
     // Downloading file chunks
-    let mut file = File::create(path).or(Err(format!("Failed to create file '{}'", path)))?;
+    create_dir_all(path.split("/").take(path.split("/").count() - 1).collect::<Vec<_>>().join("/")).unwrap();
+
+    // or(Err(format!("Failed to create file '{}'", path)))?
+    let mut file = File::create(path).unwrap();
     let mut downloaded: u64 = 0;
     let mut stream = res.bytes_stream();
 

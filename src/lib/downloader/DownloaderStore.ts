@@ -5,7 +5,9 @@ import { getStore } from "../helpers";
 import { CurrentGameStore } from "../games";
 import type { DownloadsEntity, GameEntity } from "../types";
 import { SerializedDownloaderStore } from "./SerializedDownloaderStore";
-import { appDataDir, delimiter } from "@tauri-apps/api/path";
+import { BaseDirectory, appDataDir, join } from "@tauri-apps/api/path";
+import { exists, removeDir } from "@tauri-apps/api/fs";
+import { invoke } from "@tauri-apps/api/tauri";
 
 // StoreClass
 class DownloaderStoreClass {
@@ -75,9 +77,22 @@ class DownloaderStoreClass {
         // Updating state of this store
         this.setState(DownloadState.CHECKING_FILES);
 
+        const store = await getStore(this);
+        const gameStore = await getStore(CurrentGameStore);
+
         // Checking current version and manifest information
+        if (store.currentManifest == null || store.currentManifest.path == null) {
+            return false;
+        }
 
         // Checking files integrity
+        for (var file of store.currentManifest.download.files) {
+            if (!(await exists(await join("games", gameStore.id, file.path), { dir: BaseDirectory.AppData }))) {
+                return false;
+            }
+
+            // todo: Checking this file's hash
+        }
 
         return true;
     }
@@ -119,7 +134,7 @@ class DownloaderStoreClass {
         let path = store.currentManifest!.path;
         if (path == undefined) {
             // todo: let user pick this path
-            path = await appDataDir() + delimiter + gameStore.id;
+            path = await join(await appDataDir(), "games", gameStore.id);
             this.setDownloadPath(path);
         };
 
@@ -131,8 +146,22 @@ class DownloaderStoreClass {
         this.setState(DownloadState.DOWNLOADING);
 
         // Deleting all files from game default folder
+        // if (await exists(await join("games", gameStore.id), { dir: BaseDirectory.AppData })) await removeDir(path);
 
-        // Looping through all files and downloading them
+        // Looping through all files in manifest and downloading them
+        for (var file of manifest.files) {
+            // Checking if this file exists or no
+            if (await exists(await join("games", gameStore.id, file.path), { dir: BaseDirectory.AppData })) continue;
+
+            // Asking rust backend to download this file
+            await invoke("download_file", { url: file.url, path: await join(await appDataDir(), "games", gameStore.id, file.path) });
+
+            // todo: updating progress
+        }
+
+        // todo: Sending notification about this event
+
+        this.setState(DownloadState.DONE);
     }
 
     private setDownloadPath(path: string) {
