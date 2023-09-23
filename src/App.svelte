@@ -11,7 +11,8 @@
     onMount(async () => {
         // Checking if this user is authorized or no
         if (PocketbaseInstance.authStore.isValid) {
-          navigate("/game");
+          // Hard-coded game id
+          navigate("/game/" + "v8slvmjbhrdchbo");
         } else {
           navigate("/auth");
         }
@@ -28,6 +29,8 @@
   <main class="w-full h-screen overflow-hidden">
     <Route path="/" component={LoadingPage} />
     <Route path="/auth" component={AuthPage} />
-    <Route path="/game" component={GamePage} />
+    <Route path="/game/:id" let:params>
+      <GamePage gameId={params.id} />
+    </Route>
   </main>
 </Router>
