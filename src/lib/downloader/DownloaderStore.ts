@@ -1,13 +1,13 @@
 import { writable } from "svelte/store";
-import { DownloadState, type DownloaderStoreInterface } from "./types";
+import { DownloadState, type DownloadProgress, type DownloaderStoreInterface } from "./types";
 import { PocketbaseInstance } from "../pocketbase";
-import { getStore } from "../helpers";
+import { getStore, parseDownloadsManifest } from "../helpers";
 import { CurrentGameStore } from "../games";
-import type { DownloadsEntity, GameEntity } from "../types";
 import { SerializedDownloaderStore } from "./SerializedDownloaderStore";
 import { BaseDirectory, appDataDir, join } from "@tauri-apps/api/path";
-import { exists, removeDir } from "@tauri-apps/api/fs";
+import { exists } from "@tauri-apps/api/fs";
 import { invoke } from "@tauri-apps/api/tauri";
+import type { DownloadsEntity, GameEntity } from "../types";
 
 // StoreClass
 class DownloaderStoreClass {
@@ -16,7 +16,8 @@ class DownloaderStoreClass {
 
     constructor() {
         const { subscribe, update  } = writable<DownloaderStoreInterface>({
-            state: DownloadState.IDLE
+            state: DownloadState.IDLE,
+            progress: new Map(),
         });
 
         this.subscribe = subscribe;
@@ -51,6 +52,8 @@ class DownloaderStoreClass {
 
                 if (store.currentManifest == null) {
                     manifest = await this.getLatestDownloadManifest(gameStore.id);
+                } else {
+                    manifest = store.currentManifest.download;
                 }
 
                 if (manifest == null) throw new Error("[Downloader->initialize] Could not get current game's download manifest");
@@ -87,7 +90,9 @@ class DownloaderStoreClass {
 
         // Checking files integrity
         for (var file of store.currentManifest.download.files) {
-            if (!(await exists(await join("games", gameStore.id, file.path), { dir: BaseDirectory.AppData }))) {
+            const filePath = await join(store.currentManifest.path, file.path);
+            
+            if (!(await exists(filePath))) {
                 return false;
             }
 
@@ -111,7 +116,7 @@ class DownloaderStoreClass {
 
     async getLatestDownloadManifest(gameId: string): Promise<DownloadsEntity> {
         const game = await PocketbaseInstance.collection("games").getOne<GameEntity>(gameId);
-        return PocketbaseInstance.collection("downloads").getOne<DownloadsEntity>(game.currentDownloadManifest);
+        return parseDownloadsManifest(await PocketbaseInstance.collection("downloads").getOne<DownloadsEntity>(game.currentDownloadManifest, { expand: "files" }));
     }
 
     private async downloadManifest(manifest: DownloadsEntity) {
@@ -124,7 +129,8 @@ class DownloaderStoreClass {
                 currentManifest: {
                     ...store?.currentManifest,
                     download: manifest,
-                }
+                },
+                progress: this.computeDownloadMap(manifest.files),
             };
         });
 
@@ -140,6 +146,8 @@ class DownloaderStoreClass {
 
         if (path == undefined) throw new Error("[Downloader->downloadManifest] Download path is empty");
 
+        const gamePath = path;
+
         await this.saveSerializedData();
 
         // Updating store state
@@ -149,19 +157,65 @@ class DownloaderStoreClass {
         // if (await exists(await join("games", gameStore.id), { dir: BaseDirectory.AppData })) await removeDir(path);
 
         // Looping through all files in manifest and downloading them
-        for (var file of manifest.files) {
-            // Checking if this file exists or no
-            if (await exists(await join("games", gameStore.id, file.path), { dir: BaseDirectory.AppData })) continue;
+        // todo: paralelism
+        const files = [...manifest.files];
+        const workers: Array<Promise<void>> = [];
 
-            // Asking rust backend to download this file
-            await invoke("download_file", { url: file.url, path: await join(await appDataDir(), "games", gameStore.id, file.path) });
+        const maxWorkersCount = 10;
+        const filesPerWorker = files.length / maxWorkersCount;
 
-            // todo: updating progress
-        }
+        for (let i = 0; i < maxWorkersCount; i++) {
+            const workerFiles = files.slice(filesPerWorker * i, filesPerWorker * (i + 1));
+
+            workers.push(new Promise(async (resolve) => {
+                for (var file of workerFiles) {
+                    const filePath = await join(gamePath, file.path);
+
+                    // Checking if this file exists or no
+                    if (await exists(filePath)) {
+                        this.markFileAsDownloaded(file.path);
+                        continue;
+                    };
+        
+                    // Asking rust backend to download this file
+                    await invoke("download_file", { url: file.url, path: filePath });
+        
+                    this.markFileAsDownloaded(file.path);
+                };
+
+                resolve();
+            }));
+        };
+
+        await Promise.all(workers);
 
         // todo: Sending notification about this event
 
         this.setState(DownloadState.DONE);
+    }
+
+    private computeDownloadMap(files: DownloadsEntity['files']): DownloadProgress {
+        const map = new Map();
+
+        for (var file of files) {
+            if (map.has(file.path)) throw new Error("[Downloader->computeDownloadMap] Duplicate entry: " + file.path);
+            map.set(file.path, false);
+        }
+
+        return map;
+    }
+
+    private markFileAsDownloaded(filePath: string) {
+        this.update((store) => {
+            // Trying to find this filePath in currentManifest.progress
+            // map
+            if (store.progress == null) throw new Error("[Downloader->markFileAsDownloaded] DownloadedMap is not initialized");
+            
+            // Marking this file as downloaded
+            store.progress.set(filePath, true);
+
+            return store;
+        });      
     }
 
     private setDownloadPath(path: string) {

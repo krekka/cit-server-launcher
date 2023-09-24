@@ -1,7 +1,7 @@
 <script lang="ts">
     import { AuthStore } from "../lib/stores";
 
-    import { SolidButton } from "../lib/components";
+    import { CircleSpinner, SolidButton } from "../lib/components";
     import CarbonLogout from '~icons/carbon/logout';
     import CarbonSettings from '~icons/carbon/settings';
 
@@ -11,7 +11,6 @@
     import { CurrentGameStore } from "../lib/games";
     import { PlayButton } from "./GamePage";
     import { fade } from "svelte/transition";
-    import { DownloaderStore } from "../lib/downloader";
 
     onMount(() => {
         // Fetching current game
@@ -24,8 +23,8 @@
 <div id="container" class="w-full h-full bg-stone-900 p-8 pt-20 overflow-auto">
     { #if $CurrentGameStore == null }
         <!-- Loading spinner -->
-        <div class="w-full h-screne flex items-center justify-center">
-            <p class="text-gray-600 font-medium animate-pulse">Завантаження...</p>
+        <div class="w-full h-full flex items-center justify-center">
+            <CircleSpinner size={25} />
         </div>
     { :else }
         <!-- Launch game card -->
@@ -38,7 +37,7 @@
                 </div>
 
                 <!-- Text -->
-                <div class="absolute bottom-0 z-10 p-8">
+                <div class="w-full absolute bottom-0 z-10 p-8">
                     <h1 class="text-3xl font-bold text-stone-200">{ $CurrentGameStore.name }</h1>
                 
                     <!-- Badges -->
@@ -54,8 +53,6 @@
 
                     <!-- Play button -->
                     <PlayButton />
-
-                    {$DownloaderStore.currentManifest}
                 </div>
             </section>
 

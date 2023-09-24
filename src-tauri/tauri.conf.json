@@ -29,7 +29,10 @@
         "startDragging": true
       },
       "fs": {
-        "scope": ["$APPDATA/games/**/*"],
+        "scope": {
+          "allow": ["$APPDATA/**/**"],
+          "requireLiteralLeadingDot": false
+        },
         "removeDir": true,
         "readDir": true,
         "exists": true,

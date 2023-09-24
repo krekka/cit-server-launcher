@@ -3,6 +3,7 @@ import type { CurrentGameStoreInterface } from "./types";
 import { PocketbaseInstance } from "../pocketbase";
 import { NewsStore } from "./news";
 import { DownloaderStore } from "../downloader";
+import { parseDownloadsManifest } from "../helpers";
 
 // StoreClass
 class CurrentGameStoreClass {
@@ -20,7 +21,7 @@ class CurrentGameStoreClass {
     async fetchById(id: string) {
         return new Promise((resolve, reject) => {
             PocketbaseInstance.collection("games").getOne(id, {
-                expand: "currentDownloadManifest,news"
+                expand: "currentDownloadManifest,news,currentDownloadManifest.files"
             })
                 .then(async (response) => {
                     // @ts-ignore
@@ -33,7 +34,7 @@ class CurrentGameStoreClass {
                     // Initializing Downloader
                     await DownloaderStore.loadSavedData();
                     if (response.expand?.currentDownloadManifest != null) {
-                        await DownloaderStore.initializeWithManifest(response.expand?.currentDownloadManifest);
+                        await DownloaderStore.initializeWithManifest(parseDownloadsManifest(response.expand?.currentDownloadManifest));
                     } else {
                         await DownloaderStore.initialize();
                     }

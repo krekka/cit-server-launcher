@@ -41,3 +41,13 @@ pub async fn download_file(url: &str, path: &str) -> Result<(), String> {
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn compute_file_hash(path: &str) -> Result<String, String> {
+    // Checking if this file exists
+    let file_bytes = std::fs::read(path).or(Err(format!("Error while reading file {}", path)))?;
+    let hash = sha256::digest(&file_bytes);
+
+    // Computing this file's hash
+    Ok(hash)
+}
