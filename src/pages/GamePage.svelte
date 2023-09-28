@@ -11,6 +11,8 @@
     import { CurrentGameStore } from "../lib/games";
     import { PlayButton } from "./GamePage";
     import { fade } from "svelte/transition";
+    import { NewsStore } from "../lib/games/news";
+    import NewsPost from "./GamePage/components/NewsPost.svelte";
 
     onMount(() => {
         // Fetching current game
@@ -99,20 +101,8 @@
 
         <!-- Optional: news cards -->
         <div in:fade class="grid grid-cols-4 h-full gap-4">
-            { #each [1,2,3,4,5] as news }
-                <article
-                    class="rounded-xl bg-stone-700 p-6 flex flex-col justify-end" 
-                >
-                    <!-- Title -->
-                    <h1 class="text-xl font-bold text-stone-200">Lorem, ipsum.</h1>
-
-                    <div class="my-2 flex gap-2 items-center">
-                        <span class="rounded-full bg-green-500 px-2 py-0.5 text-xs text-stone-200">Оновлення</span>
-                        <span class="rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-stone-200">17.09.2023</span>
-                    </div>
-
-                    <p class="text-xs text-stone-400">Lorem ipsum dolor sit, amet consectetur adipisicing elit. Corporis doloremque quidem et id quaerat dolores.</p>
-                </article>
+            { #each $NewsStore as post }
+                <NewsPost {post} />
             { /each }
         </div>
     { /if }

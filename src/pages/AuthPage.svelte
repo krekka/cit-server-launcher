@@ -48,7 +48,7 @@
                         }
                     });
 
-                    navigate("/game");
+                    navigate("/game/v8slvmjbhrdchbo");
                 }} class="
                     mt-6 w-full rounded-lg transition flex items-center justify-center py-1.5 px-4 text-white
                     bg-indigo-700 hover:bg-indigo-900 hover:text-stone-200

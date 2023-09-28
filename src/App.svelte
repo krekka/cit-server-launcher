@@ -12,7 +12,7 @@
         // Checking if this user is authorized or no
         if (PocketbaseInstance.authStore.isValid) {
           // Hard-coded game id
-          navigate("/game/" + "v8slvmjbhrdchbo");
+          navigate("/game/v8slvmjbhrdchbo");
         } else {
           navigate("/auth");
         }

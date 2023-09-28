@@ -4,7 +4,7 @@ import { PocketbaseInstance } from "../pocketbase";
 import { getStore, parseDownloadsManifest } from "../helpers";
 import { CurrentGameStore } from "../games";
 import { SerializedDownloaderStore } from "./SerializedDownloaderStore";
-import { BaseDirectory, appDataDir, join } from "@tauri-apps/api/path";
+import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists } from "@tauri-apps/api/fs";
 import { invoke } from "@tauri-apps/api/tauri";
 import type { DownloadsEntity, GameEntity } from "../types";
@@ -119,7 +119,18 @@ class DownloaderStoreClass {
         return parseDownloadsManifest(await PocketbaseInstance.collection("downloads").getOne<DownloadsEntity>(game.currentDownloadManifest, { expand: "files" }));
     }
 
-    private async downloadManifest(manifest: DownloadsEntity) {
+    public async startDownloading() {
+        const store = await getStore(this);
+        if (store.currentManifest?.download == null) throw new Error("No download manifest provided");
+
+        await this.downloadManifest(store.currentManifest.download);
+    }
+
+    public async pauseDownloading() {
+        this.setState(DownloadState.PAUSED);
+    };
+
+    private async downloadManifest(manifest: DownloadsEntity, forceDownload?: boolean) {
         const gameStore = await getStore(CurrentGameStore);
 
         // Saving this manifest information
@@ -151,47 +162,53 @@ class DownloaderStoreClass {
         await this.saveSerializedData();
 
         // Updating store state
-        this.setState(DownloadState.DOWNLOADING);
+        if (store.state == DownloadState.READY_FOR_DOWNLOAD || store.state == DownloadState.PAUSED || forceDownload) {
+            this.setState(DownloadState.DOWNLOADING);
 
-        // Deleting all files from game default folder
-        // if (await exists(await join("games", gameStore.id), { dir: BaseDirectory.AppData })) await removeDir(path);
+            // Deleting all files from game default folder
+            // if (await exists(await join("games", gameStore.id), { dir: BaseDirectory.AppData })) await removeDir(path);
 
-        // Looping through all files in manifest and downloading them
-        // todo: paralelism
-        const files = [...manifest.files];
-        const workers: Array<Promise<void>> = [];
+            // Looping through all files in manifest and downloading them
+            // todo: paralelism
+            const files = [...manifest.files];
+            const workers: Array<Promise<void>> = [];
 
-        const maxWorkersCount = 10;
-        const filesPerWorker = files.length / maxWorkersCount;
+            const maxWorkersCount = 10;
+            const filesPerWorker = files.length / maxWorkersCount;
 
-        for (let i = 0; i < maxWorkersCount; i++) {
-            const workerFiles = files.slice(filesPerWorker * i, filesPerWorker * (i + 1));
+            for (let i = 0; i < maxWorkersCount; i++) {
+                const workerFiles = files.slice(filesPerWorker * i, filesPerWorker * (i + 1));
 
-            workers.push(new Promise(async (resolve) => {
-                for (var file of workerFiles) {
-                    const filePath = await join(gamePath, file.path);
+                workers.push(new Promise(async (resolve) => {
+                    for (var file of workerFiles) {
+                        const store = await getStore(this); // is it really bad?
+                        const filePath = await join(gamePath, file.path);
 
-                    // Checking if this file exists or no
-                    if (await exists(filePath)) {
+                        if (store.state != DownloadState.DOWNLOADING) return;
+
+                        // Checking if this file exists or no
+                        if (await exists(filePath)) {
+                            this.markFileAsDownloaded(file.path);
+                            continue;
+                        };
+            
+                        // Asking rust backend to download this file
+                        await invoke("download_file", { url: file.url, path: filePath });
+            
                         this.markFileAsDownloaded(file.path);
-                        continue;
                     };
-        
-                    // Asking rust backend to download this file
-                    await invoke("download_file", { url: file.url, path: filePath });
-        
-                    this.markFileAsDownloaded(file.path);
-                };
 
-                resolve();
-            }));
-        };
+                    resolve();
+                }));
+            };
 
-        await Promise.all(workers);
+            await Promise.all(workers);
 
-        // todo: Sending notification about this event
-
-        this.setState(DownloadState.DONE);
+            // todo: Sending notification about this event
+            if ((await getStore(this)).state == DownloadState.DOWNLOADING) this.setState(DownloadState.DONE);
+        } else {
+            this.setState(DownloadState.READY_FOR_DOWNLOAD);
+        }
     }
 
     private computeDownloadMap(files: DownloadsEntity['files']): DownloadProgress {
