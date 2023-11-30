@@ -7,9 +7,9 @@
 }
 
 *::-webkit-scrollbar-track {
-    @apply bg-stone-800;
+    @apply bg-neutral-800;
 }
 
 *::-webkit-scrollbar-thumb {
-    @apply bg-stone-600 rounded-full;
+    @apply bg-neutral-600 rounded-full;
 }

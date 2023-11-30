@@ -10,8 +10,7 @@ use crate::downloader::compute_file_hash;
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![download_file])
-        // .invoke_handler(tauri::generate_handler![compute_file_hash])
+        .invoke_handler(tauri::generate_handler![download_file, compute_file_hash])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,109 +1,114 @@
 <script lang="ts">
+    import { CircleSpinner } from "../lib/components";
+    
     import { AuthStore } from "../lib/stores";
-
-    import { CircleSpinner, SolidButton } from "../lib/components";
-    import CarbonLogout from '~icons/carbon/logout';
-    import CarbonSettings from '~icons/carbon/settings';
-
-    import { PocketbaseInstance } from "../lib/pocketbase";
-    import { navigate } from "svelte-routing";
-    import { onMount } from "svelte";
+    import { onDestroy, onMount } from "svelte";
     import { CurrentGameStore } from "../lib/games";
     import { PlayButton } from "./GamePage";
-    import { fade } from "svelte/transition";
     import { NewsStore } from "../lib/games/news";
-    import NewsPost from "./GamePage/components/NewsPost.svelte";
+    import { NewsPost, GameBannerSlider, GridMenu, Footer } from "./GamePage/components";
+    import { NavbarStore } from "../lib/components/Navbar/stores";
+    import { BadgeType } from "../lib/types";
 
     onMount(() => {
+        NavbarStore.hideBackButton();
+
         // Fetching current game
-        CurrentGameStore.fetchById(gameId);
+        if ($CurrentGameStore?.id != gameId) CurrentGameStore.fetchById(gameId);
+    })
+
+    onDestroy(() => {
+        NavbarStore.showBackButton();
     })
 
     export let gameId: string;
 </script>
 
-<div id="container" class="w-full h-full bg-stone-900 p-8 pt-20 overflow-auto">
+<div id="container" class="w-full h-full bg-neutral-900 pt-10 overflow-auto">
     { #if $CurrentGameStore == null }
         <!-- Loading spinner -->
         <div class="w-full h-full flex items-center justify-center">
             <CircleSpinner size={25} />
         </div>
     { :else }
-        <!-- Launch game card -->
-        <div in:fade class="grid grid-cols-3 gap-4 grid-rows-1 h-2/3 relative">
-            <section class="col-span-2 rounded-lg relative">
-                <!-- Image -->
-                <div class="absolute inset-0 w-full h-full z-0">
-                    <div class="absolute w-full h-full z-20 bg-gradient-to-b from-transparent to-black rounded-xl"></div>
-                    <div style="background: url('https://cdna.artstation.com/p/assets/images/images/040/684/956/large/ilya-vdovyuk-22525.jpg?1629594801'); background-size: cover;" class="absolute w-full h-full rounded-xl z-10"></div>
-                </div>
+        <section class="w-full h-full relative">
+            <div class="z-20 absolute inset-0 w-full h-full bg-black opacity-70"></div>
+            <GameBannerSlider images={ $CurrentGameStore.bannerImages } />
 
-                <!-- Text -->
-                <div class="w-full absolute bottom-0 z-10 p-8">
-                    <h1 class="text-3xl font-bold text-stone-200">{ $CurrentGameStore.name }</h1>
-                
-                    <!-- Badges -->
-                    <div class="my-2 flex gap-2 items-center flex-wrap">
-                        <span class="rounded-full bg-green-500 px-2 py-0.5 text-xs text-stone-200">0/2023 гравців</span>
-                        <span class="rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-stone-200">Оновленно 17.09.2023</span>
+            <div class="z-30 absolute w-full h-full">
+                <!-- Header -->
+                <header class="w-full px-8 py-4 flex items-center justify-between">
+                    <!-- Links? -->
+                    <div class="flex items-center gap-12">
+                        { #each $CurrentGameStore.links as entry }
+                            <a class="text-neutral-200 cursor-pointer transition hover:text-neutral-400" href={ entry.url }>{ entry.text }</a>
+                        { /each }
                     </div>
 
-                    <!-- Latest update description -->
-                    <div class="w-2/3">
-                        <p class="text-stone-200 text-sm">{ @html $CurrentGameStore.description }</p>
+                    <!-- Account information -->
+                    <div class="flex items-center gap-3">
+                        <!-- Avatar -->
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-pink-600"></div>
+                        
+                        <!-- Information -->
+                        <div class="">
+                            <h1 class="text-neutral-200 font-semibold text-sm">{ AuthStore.model?.username }</h1>
+                            <p class="text-neutral-200 text-opacity-80 text-xs">{ AuthStore.model?.email }</p>
+                        </div>
+
+                        <!-- Divider -->
+                        <div class="w-[3px] h-8 rounded-full bg-neutral-600 mx-2"></div>
+
+                        <!-- "More Functions" Button -->
+                        <GridMenu />
                     </div>
+                </header>
+
+                <!-- Main Content -->
+                <div class="h-full flex flex-col items-start justify-center w-1/2 p-12 gap-6">
+                    <!-- Tags? -->
+                    <div class="flex items-center gap-3">
+                        { #each $CurrentGameStore.badges as badge }
+                            { #if badge.type == BadgeType.STATIC }
+                                <div class="rounded-full { badge.color ?? "bg-neutral-600" } px-4 py-0.5">
+                                    <p class="text-white text-sm">{ badge.text }</p>
+                                </div>
+                            { /if }
+                        { /each }
+                    </div>
+
+                    <!-- Game name -->
+                    <h1 class="text-5xl font-bold text-white">{ $CurrentGameStore.name }</h1>
+
+                    <!-- Description -->
+                    <p class="text-neutral-200 text-lg">{ @html $CurrentGameStore.description }</p>
 
                     <!-- Play button -->
                     <PlayButton />
                 </div>
-            </section>
 
-            <!-- User card -->
-            <section class="flex flex-col justify-end">
-                <div class="rounded-xl bg-stone-700 px-8 py-4 pt-8 relative">
-                    <!-- Profile avatar -->
-                    <div class="absolute top-[-3rem] inset-x-0 w-full flex items-center justify-center">
-                        <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-pink-600"></div>
-                    </div>
+                <!-- Footer -->
+                <div>
 
-                    <!-- Username and settings buttons -->
-                    <div class="mt-2">
-                        <div class="text-center mb-6">
-                            <h1 class="text-stone-200 font-medium text-xl">{ AuthStore.model?.username }</h1>
-                            <p class="text-sm text-stone-400">{ AuthStore.model?.email }</p>
-                        </div>
-
-                        <!-- Settings button -->
-                        <SolidButton type="focus">
-                            <CarbonSettings class="w-4 h-4" />
-
-                            <p class="ml-1.5 text-sm">Налаштування</p>
-                        </SolidButton>
-
-                        <!-- Logout button -->
-                        <SolidButton on:click={() => {
-                            PocketbaseInstance.authStore.clear();
-                            navigate("/auth");
-                        }}>
-                            <CarbonLogout class="w-4 h-4" />
-                            
-                            <p class="ml-1.5 text-sm">Вийти з аккаунту</p>
-                        </SolidButton>
-                    </div>
                 </div>
-            </section>
-        </div>
+            </div>
+        </section>
 
-        <div in:fade class="mt-16 mb-4">
-            <h1 class="text-2xl text-stone-200 font-bold">Новини</h1>
-            <p class="text-sm text-stone-400">Lorem ipsum dolor sit amet consectetur, adipisicing elit. Laudantium, quas?</p>
-        </div>
+        <section class="p-8">
+            <div class="mb-4">
+                <h1 class="text-2xl text-neutral-200 font-bold">Новини</h1>
+                <p class="text-sm text-neutral-400">Цікаво що відбувається з сервером? Тоді ви потрапили туди, куди потрібно! Усі новини сервера знаходяться саме тут.</p>
+            </div>
 
-        <!-- Optional: news cards -->
-        <div in:fade class="grid grid-cols-4 h-full gap-4">
-            { #each $NewsStore as post }
-                <NewsPost {post} />
-            { /each }
-        </div>
+            <!-- Optional: news cards -->
+            <div class="grid grid-cols-3 gap-4">
+                { #each $NewsStore as post }
+                    <NewsPost {post} />
+                { /each }
+            </div>
+        </section>
+
+        <!-- Footer section -->
+        <Footer />
     { /if }
 </div>

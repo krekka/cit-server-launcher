@@ -170,15 +170,11 @@ class DownloaderStoreClass {
 
             // Looping through all files in manifest and downloading them
             // todo: paralelism
-            const files = [...manifest.files];
+            let files = [...manifest.files];
             const workers: Array<Promise<void>> = [];
 
-            const maxWorkersCount = 10;
-            const filesPerWorker = files.length / maxWorkersCount;
-
-            for (let i = 0; i < maxWorkersCount; i++) {
-                const workerFiles = files.slice(filesPerWorker * i, filesPerWorker * (i + 1));
-
+            while (files.length) {
+                const workerFiles = files.splice(0, 350);
                 workers.push(new Promise(async (resolve) => {
                     for (var file of workerFiles) {
                         const store = await getStore(this); // is it really bad?
@@ -200,7 +196,7 @@ class DownloaderStoreClass {
 
                     resolve();
                 }));
-            };
+            }
 
             await Promise.all(workers);
 

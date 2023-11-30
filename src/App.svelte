@@ -1,36 +1,38 @@
 <script lang="ts">
-    import { Router, Route, navigate } from "svelte-routing";
-    import { onMount } from "svelte";
+    import { Router, Route } from "svelte-routing";
     import { DefaultNavbar } from "./lib/components";
-    import { PocketbaseInstance } from "./lib/pocketbase";
     
     import LoadingPage from "./pages/LoadingPage.svelte";
     import AuthPage from "./pages/AuthPage.svelte";
     import GamePage from "./pages/GamePage.svelte";
-
-    onMount(async () => {
-        // Checking if this user is authorized or no
-        if (PocketbaseInstance.authStore.isValid) {
-          // Hard-coded game id
-          navigate("/game/v8slvmjbhrdchbo");
-        } else {
-          navigate("/auth");
-        }
-      })
-
-    export let url = "/";
+    import SettingsPage from "./pages/SettingsPage.svelte";
+    import PostPage from "./pages/PostPage.svelte";
+    import { AccountSettingsPage } from "./pages/SettingsPage";
+    import PlayboxInfoPage from "./pages/PlayboxInfoPage.svelte";
 </script>
 
-<Router {url}>
+<Router>
   <!-- Navbar -->
   <DefaultNavbar />
-
+  
   <!-- Content -->
-  <main class="w-full h-screen overflow-hidden">
+  <main class="w-full overflow-hidden h-screen">
     <Route path="/" component={LoadingPage} />
     <Route path="/auth" component={AuthPage} />
     <Route path="/game/:id" let:params>
       <GamePage gameId={params.id} />
     </Route>
+    <Route path="/post/:id" let:params>
+      <PostPage id={params.id} />
+    </Route>
+
+    <!-- Settings pages -->
+    <Route path="/settings" component={SettingsPage} />
+    <Route path="/settings/account">
+      <SettingsPage pageComponent={AccountSettingsPage} />  
+    </Route>
+
+    <!-- Other pages -->
+    <Route path="/playbox" component={PlayboxInfoPage} />
   </main>
 </Router>

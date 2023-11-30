@@ -1,4 +1,5 @@
-import PlayButton from "./PlayButton.svelte";
-import DownloadProgressBar from "./DownloadProgressBar.svelte";
+export * from './Game';
+export * from './News';
+export * from './User';
 
-export { PlayButton, DownloadProgressBar };
+export { default as Footer } from './Footer.svelte';

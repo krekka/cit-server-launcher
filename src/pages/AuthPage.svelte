@@ -9,9 +9,9 @@
     let state: "idle" | "waiting" = "idle";
 </script>
 
-<div class="w-full h-screen bg-stone-900 flex items-center justify-center">
+<div class="w-full h-screen bg-neutral-900 flex items-center justify-center">
     <!-- Auth card -->
-    <div class="mt-6 w-full md:w-2/5 bg-stone-800 shadow-md">
+    <div class="mt-6 w-full md:w-2/5 bg-neutral-800 shadow-md">
         <!-- Card header -->
         <div
             style="background: url('./mesh-gradient.png'); background-size: cover;"
@@ -23,8 +23,8 @@
         <div class="px-4 py-6 text-white">
             { #if state == "idle" }
                 <!-- Some explanations -->
-                <h1 class="text-3xl text-stone-100 font-medium">Привіт, давай почнемо з авторизації!</h1>
-                <p class="text-sm text-stone-400">
+                <h1 class="text-3xl text-neutral-100 font-medium">Привіт, давай почнемо з авторизації!</h1>
+                <p class="text-sm text-neutral-400">
                     Ми дуже раді Вас вітати на нашому внутрішньо-університетському майнкрафт сервері!
                     
                     <br/><br/>
@@ -44,22 +44,23 @@
                     await PocketbaseInstance.collection("users").authWithOAuth2({
                         provider: "microsoft",
                         urlCallback: (url) => {
+                            console.log("URL:", url);
                             open(url);
                         }
                     });
 
-                    navigate("/game/v8slvmjbhrdchbo");
+                    navigate("/game/ze2vh521wab7zu6");
                 }} class="
                     mt-6 w-full rounded-lg transition flex items-center justify-center py-1.5 px-4 text-white
-                    bg-indigo-700 hover:bg-indigo-900 hover:text-stone-200
+                    bg-indigo-700 hover:bg-indigo-900 hover:text-neutral-200
                 ">
                     <CarbonLaunch />
 
                     <p class="ml-1.5">Продовжити з Microsoft</p>
                 </button>
             { :else if state == "waiting" }
-                <h1 class="text-3xl text-stone-100 font-medium">Очікуємо авторизації...</h1>
-                <p class="text-sm text-stone-400">
+                <h1 class="text-3xl text-neutral-100 font-medium">Очікуємо авторизації...</h1>
+                <p class="text-sm text-neutral-400">
                     Через пару секунд повинен відкритись браузер з запитом на авторизацію
                     
                     <br/><br/>
@@ -72,7 +73,7 @@
 
                     <button on:click={() => {
                         state = "idle";
-                    }} class="flex rounded-lg items-center justify-center mt-6 w-full transition py-1.5 px-4 text-white bg-indigo-700 hover:bg-indigo-900 hover:text-stone-200">
+                    }} class="flex rounded-lg items-center justify-center mt-6 w-full transition py-1.5 px-4 text-white bg-indigo-700 hover:bg-indigo-900 hover:text-neutral-200">
                         <CarbonRetryFailed />
 
                         <p class="ml-1.5">Спробувати ще раз</p>

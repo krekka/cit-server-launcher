@@ -1,0 +1,1 @@
+export { default as NavbarLogotype } from "./NavbarLogotype.svelte";
